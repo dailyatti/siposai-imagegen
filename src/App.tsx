@@ -823,6 +823,7 @@ const App: React.FC = () => {
             <AnimatePresence>{editingId && (<ImageEditor imageUrl={images.find(i => i.id === editingId)?.previewUrl || ''} onSave={handleEditorSave} onClose={() => setEditingId(null)} onGenerativeFill={handleGenerativeFill} />)}</AnimatePresence>
 
             <VoiceAssistant
+                apiKey={apiKey}
                 onCommand={handleVoiceCommand}
                 onAudit={() => setIsOCRModalOpen(true)}
                 onApplyAll={applyBulkSettings}
@@ -843,7 +844,7 @@ const App: React.FC = () => {
                 onLanguageChange={handleLanguageChange}
             />
 
-            <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-10 min-h-screen">
+            <main className="max-w-[1800px] mx-auto px-4 sm:px-6 py-10 min-h-screen">
                 <Hero />
 
                 <ImageUploader onFilesSelected={handleFilesSelected} />
@@ -859,34 +860,34 @@ const App: React.FC = () => {
                 <AnimatePresence>
                     {images.length > 0 && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="sticky top-24 z-40 mb-10">
-                            <div className="bg-[#0f172a]/95 backdrop-blur-2xl rounded-2xl border border-slate-700/50 p-3 shadow-2xl flex flex-col xl:flex-row gap-4 max-w-[1400px] mx-auto">
+                            <div className="bg-[#0f172a]/95 backdrop-blur-2xl rounded-2xl border border-slate-700/50 p-4 shadow-2xl flex flex-wrap xl:flex-nowrap gap-4 max-w-full mx-auto">
 
-                                <div className="flex-1 bg-slate-950/50 rounded-xl border border-slate-800/50 p-3 flex flex-col md:flex-row gap-3 items-center relative">
-                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest px-2">
+                                <div className="flex-1 min-w-[300px] bg-slate-950/50 rounded-xl border border-slate-800/50 p-3 flex flex-col lg:flex-row gap-3 items-center relative">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest px-2 whitespace-nowrap">
                                         <Layers className="w-4 h-4" /> {t('globalConfig')}
                                     </div>
-                                    <div className="h-8 w-px bg-slate-800 hidden md:block"></div>
+                                    <div className="h-8 w-px bg-slate-800 hidden lg:block"></div>
 
-                                    <div className="grid grid-cols-3 gap-2 w-full md:w-auto">
-                                        <select value={bulkFormat} onChange={(e) => setBulkFormat(e.target.value as OutputFormat)} className="bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-2.5 outline-none focus:border-emerald-500/50 cursor-pointer">
-                                            <option value={OutputFormat.JPG}>JPG Output</option>
-                                            <option value={OutputFormat.PNG}>PNG Output</option>
-                                            <option value={OutputFormat.WEBP}>WEBP Output</option>
+                                    <div className="grid grid-cols-3 gap-2 w-full lg:w-auto">
+                                        <select value={bulkFormat} onChange={(e) => setBulkFormat(e.target.value as OutputFormat)} className="bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-2.5 outline-none focus:border-emerald-500/50 cursor-pointer w-full">
+                                            <option value={OutputFormat.JPG}>JPG</option>
+                                            <option value={OutputFormat.PNG}>PNG</option>
+                                            <option value={OutputFormat.WEBP}>WEBP</option>
                                         </select>
-                                        <select value={bulkAspect} onChange={(e) => setBulkAspect(e.target.value as AspectRatio)} className="bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-2.5 outline-none focus:border-emerald-500/50 cursor-pointer">
-                                            <option value={AspectRatio.SQUARE}>1:1 Square</option>
-                                            <option value={AspectRatio.LANDSCAPE}>16:9 Wide</option>
-                                            <option value={AspectRatio.PORTRAIT}>9:16 Tall</option>
+                                        <select value={bulkAspect} onChange={(e) => setBulkAspect(e.target.value as AspectRatio)} className="bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-2.5 outline-none focus:border-emerald-500/50 cursor-pointer w-full">
+                                            <option value={AspectRatio.SQUARE}>1:1</option>
+                                            <option value={AspectRatio.LANDSCAPE}>16:9</option>
+                                            <option value={AspectRatio.PORTRAIT}>9:16</option>
                                         </select>
-                                        <select value={bulkRes} onChange={(e) => setBulkRes(e.target.value as AiResolution)} className="bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-2.5 outline-none focus:border-emerald-500/50 cursor-pointer">
-                                            <option value={AiResolution.RES_1K}>1K Res</option>
-                                            <option value={AiResolution.RES_2K}>2K Res</option>
-                                            <option value={AiResolution.RES_4K}>4K Res</option>
+                                        <select value={bulkRes} onChange={(e) => setBulkRes(e.target.value as AiResolution)} className="bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-2.5 outline-none focus:border-emerald-500/50 cursor-pointer w-full">
+                                            <option value={AiResolution.RES_1K}>1K</option>
+                                            <option value={AiResolution.RES_2K}>2K</option>
+                                            <option value={AiResolution.RES_4K}>4K</option>
                                         </select>
                                     </div>
 
-                                    <div className="w-full relative flex-1 group">
-                                        <div className={`absolute top-0 left-0 transition-all duration-300 ease-in-out z-50 ${isPromptFocused ? 'h-36 w-[180%] md:w-[400px] shadow-2xl rounded-xl' : 'h-full w-full'}`}>
+                                    <div className="w-full relative flex-1 group min-w-[200px]">
+                                        <div className={`absolute top-0 left-0 transition-all duration-300 ease-in-out z-50 ${isPromptFocused ? 'h-36 w-full lg:w-[400px] shadow-2xl rounded-xl' : 'h-full w-full'}`}>
                                             <PenTool className={`w-3.5 h-3.5 text-slate-500 absolute left-3 top-3 z-30 transition-colors ${isPromptFocused ? 'text-purple-400' : ''}`} />
                                             {isPromptFocused ? (
                                                 <textarea
@@ -904,20 +905,20 @@ const App: React.FC = () => {
                                                     onFocus={() => setIsPromptFocused(true)}
                                                     readOnly
                                                     placeholder={t('creativePrompt')}
-                                                    className="w-full bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg pl-9 pr-3 py-2.5 outline-none focus:border-purple-500/50 cursor-text"
+                                                    className="w-full bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg pl-9 pr-3 py-2.5 outline-none focus:border-purple-500/50 cursor-text text-ellipsis"
                                                 />
                                             )}
                                         </div>
                                         <div className="h-[34px] w-full"></div>
                                     </div>
 
-                                    <button onClick={applyBulkSettings} className={`w-full md:w-auto px-6 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wide transition-all flex items-center justify-center gap-2 whitespace-nowrap z-10 ${isApplied ? 'bg-emerald-500 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}>
+                                    <button onClick={applyBulkSettings} className={`w-full lg:w-auto px-4 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wide transition-all flex items-center justify-center gap-2 whitespace-nowrap z-10 ${isApplied ? 'bg-emerald-500 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}>
                                         {isApplied ? <CopyCheck className="w-4 h-4" /> : <Layers className="w-4 h-4" />} {isApplied ? t('settingsSynced') : t('applyAll')}
                                     </button>
                                 </div>
 
-                                <div className="bg-slate-900 rounded-xl border border-slate-800 p-3 flex items-center gap-3 justify-between xl:justify-start overflow-x-auto z-10">
-                                    <div className="flex flex-col items-start px-2 whitespace-nowrap">
+                                <div className="bg-slate-900 rounded-xl border border-slate-800 p-3 flex flex-wrap lg:flex-nowrap items-center gap-3 justify-between lg:justify-start z-10 flex-1 xl:flex-none">
+                                    <div className="flex flex-col items-start px-2 whitespace-nowrap mr-auto lg:mr-0">
                                         <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
                                             <BrainCircuit className="w-4 h-4" /> {t('queue')}
                                         </div>
@@ -925,35 +926,37 @@ const App: React.FC = () => {
                                             {originalCount} Orig | {variantCount} Vars
                                         </div>
                                     </div>
-                                    <div className="h-8 w-px bg-slate-800 hidden md:block"></div>
+                                    <div className="h-8 w-px bg-slate-800 hidden lg:block"></div>
 
-                                    <button onClick={clearQueue} className="p-2.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 hover:text-red-300 rounded-lg border border-red-900/50 transition-all" title={t('clearQueue')}>
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full lg:w-auto justify-end">
+                                        <button onClick={clearQueue} className="p-2.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 hover:text-red-300 rounded-lg border border-red-900/50 transition-all" title={t('clearQueue')}>
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
 
-                                    <button onClick={openCompositeModal} className="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white px-4 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 whitespace-nowrap transition-all shadow-lg shadow-pink-900/20">
-                                        <PlusSquare className="w-3.5 h-3.5" /> {t('composite')}
-                                    </button>
+                                        <button onClick={openCompositeModal} className="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white px-3 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 whitespace-nowrap transition-all shadow-lg shadow-pink-900/20 flex-1 sm:flex-none justify-center">
+                                            <PlusSquare className="w-3.5 h-3.5" /> {t('composite')}
+                                        </button>
 
-                                    <button onClick={openOCRModal} disabled={isExtractingText} className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-4 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 whitespace-nowrap transition-all">
-                                        {isExtractingText ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} {t('extractText')}
-                                    </button>
+                                        <button onClick={openOCRModal} disabled={isExtractingText} className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 whitespace-nowrap transition-all flex-1 sm:flex-none justify-center">
+                                            {isExtractingText ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} {t('extractText')}
+                                        </button>
 
-                                    <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 px-2 h-[38px]">
-                                        <select value={namingPattern} onChange={(e) => setNamingPattern(e.target.value as NamingPattern)} className="bg-transparent text-xs text-slate-400 outline-none h-full cursor-pointer">
-                                            <option value={NamingPattern.ORIGINAL}>{t('originalName')}</option>
-                                            <option value={NamingPattern.RANDOM_ID}>{t('randomId')}</option>
-                                            <option value={NamingPattern.SEQUENTIAL_PREFIX}>{t('seqPrefix')}</option>
-                                        </select>
+                                        <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 px-2 h-[38px] flex-1 sm:flex-none">
+                                            <select value={namingPattern} onChange={(e) => setNamingPattern(e.target.value as NamingPattern)} className="bg-transparent text-xs text-slate-400 outline-none h-full cursor-pointer w-full">
+                                                <option value={NamingPattern.ORIGINAL}>{t('originalName')}</option>
+                                                <option value={NamingPattern.RANDOM_ID}>{t('randomId')}</option>
+                                                <option value={NamingPattern.SEQUENTIAL_PREFIX}>{t('seqPrefix')}</option>
+                                            </select>
+                                        </div>
+
+                                        <button onClick={processAll} disabled={globalProcessing} className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 uppercase tracking-wide whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all flex-1 sm:flex-none justify-center">
+                                            {globalProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} {t('startQueue')}
+                                        </button>
+
+                                        <button onClick={downloadAllProcessed} className="bg-white hover:bg-slate-200 text-slate-950 px-3 py-2.5 rounded-lg flex items-center justify-center shadow-lg transition-all">
+                                            <Download className="w-4 h-4" />
+                                        </button>
                                     </div>
-
-                                    <button onClick={processAll} disabled={globalProcessing} className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 uppercase tracking-wide whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all">
-                                        {globalProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} {t('startQueue')}
-                                    </button>
-
-                                    <button onClick={downloadAllProcessed} className="bg-white hover:bg-slate-200 text-slate-950 px-4 py-2.5 rounded-lg flex items-center justify-center shadow-lg transition-all">
-                                        <Download className="w-4 h-4" />
-                                    </button>
                                 </div>
                             </div>
                         </motion.div>
