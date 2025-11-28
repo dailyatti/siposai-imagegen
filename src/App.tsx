@@ -315,7 +315,7 @@ const App: React.FC = () => {
         toast.success(`Created ${newVariants.length} queued variants`, { style: { borderRadius: '10px', background: '#333', color: '#fff' } });
     };
 
-    const processSingleImage = async (id: string) => {
+    const processSingleImage = async (id: string, overridePrompt?: string) => {
         const originalItem = images.find(i => i.id === id);
         if (!originalItem) return;
 
@@ -330,7 +330,8 @@ const App: React.FC = () => {
             id: variantId,
             status: ProcessingStatus.PROCESSING,
             duplicateIndex: (originalItem.duplicateIndex || 1) + 1,
-            originalMeta: { ...originalItem.originalMeta, name: `${originalItem.originalMeta.name} (Processed)` }
+            originalMeta: { ...originalItem.originalMeta, name: `${originalItem.originalMeta.name} (Processed)` },
+            userPrompt: overridePrompt || originalItem.userPrompt // Use override prompt if provided
         };
 
         setImages(prev => {
@@ -887,10 +888,8 @@ const App: React.FC = () => {
         const item = images.find(i => i.id === id);
         if (!item) return;
 
-        const toastId = toast.loading("Removing text...", { icon: '🧹' });
-        try {
-            // Enhanced text removal with explicit detection instructions
-            const enhancedPrompt = `CRITICAL PRIORITY TASK: COMPLETE TEXT REMOVAL
+        // Enhanced text removal with explicit detection instructions
+        const enhancedPrompt = `CRITICAL PRIORITY TASK: COMPLETE TEXT REMOVAL
 
 STEP 1 - COMPREHENSIVE TEXT DETECTION:
 Scan the ENTIRE image systematically (every pixel, all quadrants).
@@ -907,7 +906,7 @@ STEP 2 - INTELLIGENT BACKGROUND RECONSTRUCTION:
 For each detected text element:
 - Analyze the immediate surrounding context (textures, colors, patterns)
 - Generate seamless background that matches:
-  * If text is on sky → generate matching sky with correct gradient
+  * If text is on sky → generate sky texture
   * If text is on concrete/brick → replicate texture and grain
   * If text is on skin → match skin tone and texture
   * If text is on water → replicate water ripples/reflections
@@ -926,33 +925,9 @@ STEP 4 - VERIFICATION:
 
 NEGATIVE PROMPT: text, letters, words, characters, watermark, caption, subtitle, logo, signature, writing, typography, numbers, date, timestamp, copyright`;
 
-            const result = await processGenerativeFill(item.file, enhancedPrompt);
-
-            // Create new variant
-            const variantId = uuidv4();
-            const newItem: ImageItem = {
-                ...item,
-                id: variantId,
-                file: new File([await (await fetch(result.processedUrl)).blob()], `cleaned_${item.originalMeta.name}`, { type: item.targetFormat }),
-                previewUrl: result.processedUrl,
-                processedUrl: result.processedUrl,
-                status: ProcessingStatus.SUCCESS,
-                duplicateIndex: (item.duplicateIndex || 1) + 1,
-                userPrompt: "Text removed"
-            };
-
-            setImages(prev => {
-                const index = prev.findIndex(i => i.id === id);
-                const newArr = [...prev];
-                newArr.splice(index + 1, 0, newItem);
-                return newArr;
-            });
-
-            toast.success("Text removed - check new variant!", { id: toastId });
-        } catch (e) {
-            console.error(e);
-            toast.error(`Failed: ${e instanceof Error ? e.message : 'Unknown error'}`, { id: toastId });
-        }
+        // Use standard processing flow with override prompt
+        // This ensures UI feedback (loading spinners, status updates) works exactly like standard generation
+        await processSingleImage(id, enhancedPrompt);
     };
 
     const downloadSelected = async () => {
@@ -1283,7 +1258,7 @@ NEGATIVE PROMPT: text, letters, words, characters, watermark, caption, subtitle,
                     )}
                 </AnimatePresence>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
                     <AnimatePresence>
                         {images.map(img => (
                             <ImageCard
