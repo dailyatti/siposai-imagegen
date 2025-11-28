@@ -888,8 +888,8 @@ const App: React.FC = () => {
         const item = images.find(i => i.id === id);
         if (!item) return;
 
-        // Simplified and effective text removal prompt
-        const enhancedPrompt = `Remove all visible text, watermarks, captions, logos, and signatures from this image. Intelligently fill the removed areas with matching background texture and colors to make it look completely natural and seamless.`;
+        // Simplified prompt as requested by user - this worked best in previous versions
+        const enhancedPrompt = "Remove all visible text";
 
         // Use standard processing flow with override prompt
         // This ensures UI feedback (loading spinners, status updates) works exactly like standard generation
