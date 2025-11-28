@@ -586,6 +586,12 @@ const App: React.FC = () => {
 
         // 1. TRIGGER NATIVE GEN (ATOMIC)
         if (cmd.triggerNative) {
+            // CRITICAL FIX: Do not trigger native gen if Composite Modal is open
+            if (modals.composite) {
+                toast.error("Please close the Composite Generator first.");
+                return;
+            }
+
             const configOverride: any = {};
             if (cmd.aspectRatio) configOverride.aspectRatio = cmd.aspectRatio;
             if (cmd.resolution) configOverride.resolution = cmd.resolution;

@@ -104,9 +104,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     // Audio Scheduling
     const nextStartTimeRef = useRef<number>(0);
     const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+    const isStoppedRef = useRef<boolean>(false);
 
     // Session Management
     const sessionRef = useRef<any>(null);
+
+    // ... (rest of component)
+
+
+
+
 
     // ANNOUNCE BATCH COMPLETION
     useEffect(() => {
@@ -191,11 +198,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
           FONTOS SZABÁLYOK:
           
-          0. TÜRELEM ÉS HALLGATÁS (Kritikus):
+          0. AZONNALI LEÁLLÁS (Kritikus):
+             - Ha a felhasználó azt mondja: "Állj", "Csend", "Elég", "Stop", "Kuss", "Fogd be", "Hallgass", "Fejezd be", "Nyugi" -> AZONNAL hívd meg a 'stop_speaking' eszközt.
+             - Ne válaszolj semmit, csak állj meg.
+             - Ez a legmagasabb prioritású parancs.
+
+          1. TÜRELEM ÉS HALLGATÁS:
              - VÁRD MEG, amíg a felhasználó befejezi a mondatot. Ne vágj közbe!
-             - Csak akkor válaszolj, ha egyértelmű utasítást kaptál.
+             - Figyelj a "Hallgass" szóra, ez jelentheti azt is, hogy maradj csendben.
           
-          1. ABLAKOK KEZELÉSE (Zárás/Nyitás):
+          2. ABLAKOK KEZELÉSE (Zárás/Nyitás):
              - "Zárd be a dokumentációt" -> 'manage_ui_state' -> 'CLOSE_DOCS'.
              - "Zárd be az OCR-t" -> 'manage_ui_state' -> 'CLOSE_OCR'.
              - "Zárd be a kompozitot" -> 'manage_ui_state' -> 'CLOSE_COMPOSITE'.
@@ -432,6 +444,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                         parameters: { type: Type.OBJECT, properties: {} }
                     },
                     {
+                        name: 'stop_speaking',
+                        description: 'Immediately stops the assistant from speaking and clears the audio queue. Use this when user says "Stop", "Quiet", "Enough".',
+                        parameters: { type: Type.OBJECT, properties: {} }
+                    },
+                    {
                         name: 'set_composite_config',
                         description: 'Sets configuration for the Composite Generator (POD).',
                         parameters: {
@@ -569,6 +586,19 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                                 } else if (fc.name === 'manage_ui_state') {
                                     onCommand({ uiAction: args.action, value: args.value });
                                     result = { ok: true, message: `UI State updated: ${args.action} -> ${args.value}` };
+                                } else if (fc.name === 'stop_speaking') {
+                                    // Clear audio queue immediately
+                                    isStoppedRef.current = true; // Set flag to block incoming chunks
+                                    sourcesRef.current.forEach(source => {
+                                        try { source.stop(); } catch (e) { }
+                                    });
+                                    sourcesRef.current.clear();
+                                    nextStartTimeRef.current = 0;
+
+                                    // Reset flag after a short delay to allow new interactions
+                                    setTimeout(() => { isStoppedRef.current = false; }, 2000);
+
+                                    result = { ok: true, message: "Audio stopped." };
                                 } else if (fc.name === 'manage_queue_actions') {
                                     onCommand({ queueAction: args.action });
                                     result = { ok: true, message: "Queue action executed." };
@@ -604,6 +634,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                         const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (base64Audio) {
                             try {
+                                if (isStoppedRef.current) return; // Block audio if stopped
+
                                 nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioContext.currentTime);
                                 const audioBuffer = await decodeAudioData(decode(base64Audio), audioContext, 24000, 1);
                                 const source = audioContext.createBufferSource();
