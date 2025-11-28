@@ -21,7 +21,7 @@ import { ApiKeyModal } from './components/Modals/ApiKeyModal';
 import { useApiKey } from './context/ApiKeyContext';
 
 import { ImageItem, OutputFormat, AiResolution, ProcessingStatus, AspectRatio, NamingPattern } from './types';
-import { getImageDimensions, fileToBase64 } from './services/imageUtils';
+import { getImageDimensions, fileToBase64, convertUrlToBlob } from './services/imageUtils';
 import { processImageWithGemini, extractTextFromImages, processCompositeGeneration, processGenerativeFill, generateImageFromText } from './services/geminiService';
 import { loadSessionImages, saveSessionImages } from './services/storageService';
 
@@ -841,17 +841,29 @@ const App: React.FC = () => {
         }
         toast.loading('Zipping files...', { id: 'zip-download' });
         const zip = new JSZip();
-        processedImages.forEach((img, index) => {
+
+        // Use Promise.all to handle async conversions
+        await Promise.all(processedImages.map(async (img, index) => {
             if (img.processedUrl) {
                 let name = img.originalMeta.name.split('.')[0];
                 if (img.customOutputName) name = img.customOutputName;
                 if (namingPattern === NamingPattern.RANDOM_ID) name = uuidv4().slice(0, 8);
                 if (namingPattern === NamingPattern.SEQUENTIAL_PREFIX) name = `${String(index + 1).padStart(2, '0')}_${name}`;
                 if (namingPattern === NamingPattern.SEQUENTIAL_SUFFIX) name = `${name}_${String(index + 1).padStart(2, '0')}`;
+
                 const ext = img.targetFormat.split('/')[1];
-                zip.file(`${name}.${ext}`, fetch(img.processedUrl).then(r => r.blob()));
+                // Use convertUrlToBlob to ensure correct format
+                try {
+                    const blob = await convertUrlToBlob(img.processedUrl, img.targetFormat);
+                    zip.file(`${name}.${ext}`, blob);
+                } catch (e) {
+                    console.error(`Failed to convert/download ${name}`, e);
+                    // Fallback to direct fetch if conversion fails
+                    zip.file(`${name}.${ext}`, fetch(img.processedUrl).then(r => r.blob()));
+                }
             }
-        });
+        }));
+
         const content = await zip.generateAsync({ type: "blob" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
@@ -861,6 +873,96 @@ const App: React.FC = () => {
         document.body.removeChild(link);
         toast.dismiss('zip-download');
         toast.success('Download started');
+    };
+
+    // --- NEW: SELECTION & QUICK ACTIONS ---
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+    const handleSelectionToggle = (id: string) => {
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    };
+
+    const handleQuickRemoveText = async (id: string) => {
+        const item = images.find(i => i.id === id);
+        if (!item) return;
+
+        const toastId = toast.loading("Removing text...", { icon: '🧹' });
+        try {
+            if (!apiKey) throw new Error("API Key required");
+
+            // Use the original file for text removal to avoid quality loss
+            const blob = item.file;
+
+            // Explicitly request text removal
+            const result = await processGenerativeFill(apiKey, blob, item.targetFormat, "Remove all text, captions, and watermarks from this image. Fill with matching background.");
+
+            // Create new variant
+            const variantId = uuidv4();
+            const newItem: ImageItem = {
+                ...item,
+                id: variantId,
+                file: new File([await (await fetch(result.processedUrl)).blob()], `cleaned_${item.originalMeta.name}`, { type: item.targetFormat }),
+                previewUrl: result.processedUrl,
+                processedUrl: result.processedUrl,
+                status: ProcessingStatus.SUCCESS,
+                duplicateIndex: (item.duplicateIndex || 1) + 1,
+                userPrompt: "Text removed"
+            };
+
+            setImages(prev => {
+                const index = prev.findIndex(i => i.id === id);
+                const newArr = [...prev];
+                newArr.splice(index + 1, 0, newItem);
+                return newArr;
+            });
+
+            toast.success("Text removed successfully!", { id: toastId });
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to remove text", { id: toastId });
+        }
+    };
+
+    const downloadSelected = async () => {
+        if (selectedIds.length === 0) {
+            toast.error("No images selected");
+            return;
+        }
+
+        toast.loading(`Preparing ${selectedIds.length} images...`, { id: 'dl-selected' });
+        const zip = new JSZip();
+
+        await Promise.all(selectedIds.map(async (id) => {
+            const img = images.find(i => i.id === id);
+            if (!img) return;
+
+            // Determine source URL (processed or preview/original)
+            const url = img.processedUrl || img.previewUrl;
+            if (!url) return;
+
+            let name = img.originalMeta.name.split('.')[0];
+            if (img.customOutputName) name = img.customOutputName;
+            // Add unique suffix if multiple selected to avoid collision? JSZip handles overwrite, but better to be safe.
+            // Actually, let's keep original names unless collision.
+
+            const ext = img.targetFormat.split('/')[1];
+            try {
+                const blob = await convertUrlToBlob(url, img.targetFormat);
+                zip.file(`${name}_${id.slice(0, 4)}.${ext}`, blob);
+            } catch (e) {
+                console.error(`Failed to process ${name}`, e);
+            }
+        }));
+
+        const content = await zip.generateAsync({ type: "blob" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(content);
+        link.download = `BananaAI_Selected_${new Date().getTime()}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.dismiss('dl-selected');
+        toast.success("Download ready");
     };
 
     const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === i18n.language) || SUPPORTED_LANGUAGES[0];
@@ -1074,8 +1176,14 @@ const App: React.FC = () => {
                                         </button>
 
                                         <button onClick={downloadAllProcessed} className="bg-white hover:bg-slate-200 text-slate-950 px-5 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all">
-                                            <Download className="w-5 h-5" /> Download
+                                            <Download className="w-5 h-5" /> Download All
                                         </button>
+
+                                        {selectedIds.length > 0 && (
+                                            <button onClick={downloadSelected} className="col-span-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all animate-in fade-in slide-in-from-bottom-2">
+                                                <Download className="w-5 h-5" /> Download Selected ({selectedIds.length})
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1119,6 +1227,9 @@ const App: React.FC = () => {
                                 onRemove={removeImage}
                                 onEdit={setEditingId}
                                 onMultiVariant={handleMultiVariant}
+                                isSelected={selectedIds.includes(img.id)}
+                                onToggleSelection={() => handleSelectionToggle(img.id)}
+                                onQuickRemoveText={() => handleQuickRemoveText(img.id)}
                             />
                         ))}
                     </AnimatePresence>

@@ -1,11 +1,17 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import Cropper from 'react-cropper';
-import { X, Check, RotateCw, ZoomIn, ZoomOut, Sparkles, Maximize, Download, Brush, Eraser } from 'lucide-react';
+import { X, Check, RotateCw, ZoomIn, ZoomOut, Sparkles, Maximize, Download, Brush, Eraser, Square, MousePointer2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { LoadingOverlay } from './LoadingOverlay';
 import { OutputFormat } from '../types';
+
+enum ToolType {
+    BRUSH = 'BRUSH',
+    ERASER = 'ERASER',
+    RECTANGLE = 'RECTANGLE'
+}
 
 interface ImageEditorProps {
     imageUrl: string;
@@ -24,10 +30,14 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
 
     // Masking State
     const [isMaskingMode, setIsMaskingMode] = useState(false);
-    const [isEraserMode, setIsEraserMode] = useState(false);
+    const [activeTool, setActiveTool] = useState<ToolType>(ToolType.BRUSH);
     const [brushSize, setBrushSize] = useState(20);
     const maskCanvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
+
+    // Rectangle Selection State
+    const [selectionStart, setSelectionStart] = useState<{ x: number, y: number } | null>(null);
+    const [currentSelection, setCurrentSelection] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
 
     // Download config within editor
     const [downloadFormat, setDownloadFormat] = useState<OutputFormat>(OutputFormat.PNG);
@@ -50,12 +60,31 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
 
     const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
         setIsDrawing(true);
-        draw(e);
+        if (activeTool === ToolType.RECTANGLE && maskCanvasRef.current) {
+            const rect = maskCanvasRef.current.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            setSelectionStart({ x, y });
+            setCurrentSelection({ x, y, w: 0, h: 0 });
+        } else {
+            draw(e);
+        }
     };
 
     const stopDrawing = () => {
         setIsDrawing(false);
         const ctx = maskCanvasRef.current?.getContext('2d');
+
+        if (activeTool === ToolType.RECTANGLE && currentSelection && ctx) {
+            // Commit rectangle to mask
+            ctx.globalCompositeOperation = 'destination-out'; // Reveal image (create mask)
+            ctx.fillStyle = 'black'; // Color doesn't matter for destination-out
+            ctx.fillRect(currentSelection.x, currentSelection.y, currentSelection.w, currentSelection.h);
+
+            setSelectionStart(null);
+            setCurrentSelection(null);
+        }
+
         if (ctx) ctx.beginPath(); // Reset path
     };
 
@@ -69,11 +98,18 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        if (isEraserMode) {
+        if (activeTool === ToolType.RECTANGLE && selectionStart) {
+            const w = x - selectionStart.x;
+            const h = y - selectionStart.y;
+            setCurrentSelection({ x: selectionStart.x, y: selectionStart.y, w, h });
+            return;
+        }
+
+        if (activeTool === ToolType.ERASER) {
             // Eraser mode: restore the dark overlay
             ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-        } else {
+        } else if (activeTool === ToolType.BRUSH) {
             // Brush mode: "Erase" the dark overlay to reveal image (create mask)
             ctx.globalCompositeOperation = 'destination-out';
         }
@@ -84,6 +120,18 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
         ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(x, y);
+    };
+
+    const clearMask = () => {
+        if (maskCanvasRef.current) {
+            const canvas = maskCanvasRef.current;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
     };
 
     const handleSave = () => {
@@ -184,7 +232,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
             const link = document.createElement('a');
             link.href = dataUrl;
             const ext = mimeType.split('/')[1];
-            link.download = `banana_outpaint_${Date.now()}.${ext}`;
+            link.download = `banana_outpaint_${Date.now()}.${ext} `;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -228,14 +276,39 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
 
                     {/* Masking Overlay Canvas */}
                     {isMaskingMode && (
-                        <canvas
-                            ref={maskCanvasRef}
-                            className="absolute inset-0 z-20 cursor-crosshair touch-none"
-                            onMouseDown={startDrawing}
-                            onMouseMove={draw}
-                            onMouseUp={stopDrawing}
-                            onMouseLeave={stopDrawing}
-                        />
+                        <>
+                            <canvas
+                                ref={maskCanvasRef}
+                                className={`absolute inset-0 z-20 touch-none ${activeTool === ToolType.RECTANGLE ? 'cursor-crosshair' : 'cursor-none'}`}
+                                onMouseDown={startDrawing}
+                                onMouseMove={draw}
+                                onMouseUp={stopDrawing}
+                                onMouseLeave={stopDrawing}
+                            />
+                            {/* Selection Overlay */}
+                            {currentSelection && (
+                                <div
+                                    className="absolute border-2 border-dashed border-white bg-white/10 pointer-events-none z-30"
+                                    style={{
+                                        left: currentSelection.w > 0 ? currentSelection.x : currentSelection.x + currentSelection.w,
+                                        top: currentSelection.h > 0 ? currentSelection.y : currentSelection.y + currentSelection.h,
+                                        width: Math.abs(currentSelection.w),
+                                        height: Math.abs(currentSelection.h)
+                                    }}
+                                />
+                            )}
+                            {/* Brush Cursor */}
+                            {activeTool !== ToolType.RECTANGLE && !currentSelection && (
+                                <div className="pointer-events-none fixed z-50 rounded-full border-2 border-white/50 bg-white/20" style={{
+                                    width: brushSize,
+                                    height: brushSize,
+                                    transform: 'translate(-50%, -50%)',
+                                    // We need to track mouse position globally for this, or just rely on native cursor. 
+                                    // Native cursor is easier. Let's skip custom cursor for now or implement it properly later.
+                                    display: 'none'
+                                }} />
+                            )}
+                        </>
                     )}
 
                     {!hasGenerated && !isMaskingMode && (
@@ -281,16 +354,22 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
                         <div className="flex flex-col gap-3 pb-4 border-b border-slate-800">
                             <div className="flex items-center justify-center gap-3">
                                 <button
-                                    onClick={() => setIsEraserMode(false)}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${!isEraserMode ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                                    onClick={() => setActiveTool(ToolType.BRUSH)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTool === ToolType.BRUSH ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
                                 >
                                     <Brush className="w-4 h-4" /> Brush
                                 </button>
                                 <button
-                                    onClick={() => setIsEraserMode(true)}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${isEraserMode ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                                    onClick={() => setActiveTool(ToolType.ERASER)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTool === ToolType.ERASER ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
                                 >
                                     <Eraser className="w-4 h-4" /> Eraser
+                                </button>
+                                <button
+                                    onClick={() => setActiveTool(ToolType.RECTANGLE)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTool === ToolType.RECTANGLE ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                                >
+                                    <Square className="w-4 h-4" /> Rect
                                 </button>
                                 <button
                                     onClick={() => {
@@ -319,7 +398,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
                                     className="w-48 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                                 />
                                 <div
-                                    className={`rounded-full border-2 ${isEraserMode ? 'bg-slate-700/50 border-red-500' : 'bg-red-500/50 border-red-500'}`}
+                                    className={`rounded-full border-2 ${activeTool === ToolType.ERASER ? 'bg-slate-700/50 border-red-500' : 'bg-red-500/50 border-red-500'} `}
                                     style={{ width: Math.max(brushSize / 2, 12), height: Math.max(brushSize / 2, 12) }}
                                 />
                                 <span className="text-xs text-slate-300 font-mono">{brushSize}px</span>
@@ -329,7 +408,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
 
                     <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
                         {/* Standard Tools */}
-                        <button onClick={() => setIsMaskingMode(!isMaskingMode)} className={`flex flex-col items-center gap-1 transition-colors ${isMaskingMode ? 'text-emerald-400' : 'text-slate-400 hover:text-white'}`}>
+                        <button onClick={() => setIsMaskingMode(!isMaskingMode)} className={`flex flex - col items - center gap - 1 transition - colors ${isMaskingMode ? 'text-emerald-400' : 'text-slate-400 hover:text-white'} `}>
                             <Brush className="w-5 h-5" /> <span className="text-[10px]">{isMaskingMode ? 'Masking On' : 'Mask'}</span>
                         </button>
 
@@ -353,7 +432,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
                                 <button
                                     onClick={() => handleGenerativeFill(isMaskingMode ? "Inpaint the masked area to match the background seamlessly." : undefined)}
                                     disabled={isGenerating}
-                                    className={`bg-gradient-to-r ${isMaskingMode ? 'from-emerald-600 to-teal-600' : 'from-purple-600 to-indigo-600'} hover:opacity-90 text-white px-5 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg transition-all disabled:opacity-50`}
+                                    className={`bg - gradient - to - r ${isMaskingMode ? 'from-emerald-600 to-teal-600' : 'from-purple-600 to-indigo-600'} hover: opacity - 90 text - white px - 5 py - 2 rounded - lg font - bold text - sm flex items - center gap - 2 shadow - lg transition - all disabled: opacity - 50`}
                                     title={isMaskingMode ? "Fill Masked Area" : t('genFillDesc')}
                                 >
                                     <Sparkles className="w-4 h-4" /> {isMaskingMode ? 'Fill Mask' : t('genFill')}
@@ -365,34 +444,34 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
 CRITICAL TASK: TEXT, WATERMARK, AND CAPTION REMOVAL
 
 STEP 1 - TEXT DETECTION:
-- Scan the entire image systematically (left to right, top to bottom)
-- Detect ALL visible text including:
-  * Watermarks (especially semi-transparent ones)
-  * Captions and subtitles
-  * Logos with text
-  * Small copyright notices
-  * Overlaid text of any color
-  * Curved or stylized text
+- Scan the entire image systematically(left to right, top to bottom)
+    - Detect ALL visible text including:
+  * Watermarks(especially semi - transparent ones)
+    * Captions and subtitles
+        * Logos with text
+        * Small copyright notices
+            * Overlaid text of any color
+                * Curved or stylized text
 
 STEP 2 - CONTENT ANALYSIS:
 - Analyze the BACKGROUND behind each detected text element
-- Identify the textures, colors, and patterns that would naturally exist there
+    - Identify the textures, colors, and patterns that would naturally exist there
 
 STEP 3 - INTELLIGENT INPAINTING:
 - Remove ALL detected text by regenerating the background
-- Match the local context precisely:
+    - Match the local context precisely:
   * If text is on sky → generate sky texture
-  * If text is on concrete → generate concrete texture
-  * If text is on skin → generate skin texture
-  * If text is on water → generate water texture
-- Ensure seamless blending at all edges
-- Preserve natural lighting and shadows
-- DO NOT leave any rectangular patches or artifacts
+    * If text is on concrete → generate concrete texture
+        * If text is on skin → generate skin texture
+            * If text is on water → generate water texture
+                - Ensure seamless blending at all edges
+                    - Preserve natural lighting and shadows
+                        - DO NOT leave any rectangular patches or artifacts
 
 STEP 4 - VERIFICATION:
 - The final image must look completely natural
-- No traces of removed text should be visible
-- The inpainted areas must be indistinguishable from the original background
+    - No traces of removed text should be visible
+        - The inpainted areas must be indistinguishable from the original background
 
 OUTPUT: Return the cleaned image with ALL text removed and backgrounds perfectly reconstructed.
 `)}

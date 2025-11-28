@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ImageItem, OutputFormat, AiResolution, AspectRatio, ProcessingStatus } from '../types';
 import { formatBytes } from '../services/imageUtils';
-import { Trash2, Download, AlertCircle, CheckCircle2, ScanLine, FileType, Monitor, Wand2, RefreshCw, PenTool, Type, Crop, Mic, Clock, Layers, RotateCcw, Share2, CopyPlus, MoreVertical } from 'lucide-react';
+import { Trash2, Download, AlertCircle, CheckCircle2, ScanLine, FileType, Monitor, Wand2, RefreshCw, PenTool, Type, Crop, Mic, Clock, Layers, RotateCcw, Share2, CopyPlus, MoreVertical, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -14,6 +14,9 @@ interface ImageCardProps {
     onRemove: (id: string) => void;
     onEdit: (id: string) => void;
     onMultiVariant?: (id: string, type: 'RATIOS' | 'FORMATS' | 'VARIANTS') => void;
+    isSelected?: boolean;
+    onToggleSelection?: () => void;
+    onQuickRemoveText?: () => void;
 }
 
 // Processing Phase State
@@ -22,7 +25,7 @@ enum ProcessingPhase {
     GENERATING = 'GENERATING'
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({ item, onUpdateConfig, onProcess, onRemove, onEdit, onMultiVariant }) => {
+export const ImageCard: React.FC<ImageCardProps> = ({ item, onUpdateConfig, onProcess, onRemove, onEdit, onMultiVariant, isSelected, onToggleSelection, onQuickRemoveText }) => {
     const { t } = useTranslation();
     const [isPromptFocused, setIsPromptFocused] = useState(false);
     const [processingPhase, setProcessingPhase] = useState<ProcessingPhase>(ProcessingPhase.SCANNING);
@@ -141,15 +144,11 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onUpdateConfig, onPr
     return (
         <motion.div
             layout
-            className={`
-        relative group rounded-2xl border transition-all duration-500 overflow-visible flex flex-col lg:flex-row z-0 hover:z-20
-        ${isSuccess
-                    ? 'bg-[#0f172a]/80 border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.05)]'
-                    : isProcessing
-                        ? 'bg-[#0f172a]/90 border-indigo-500/40 ring-1 ring-indigo-500/20 shadow-2xl'
-                        : 'bg-[#0f172a]/60 border-slate-800 hover:border-slate-700 hover:shadow-xl hover:bg-[#0f172a]/80'
-                }
-    `}>
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className={`group relative bg-[#0f172a]/80 backdrop-blur-xl border ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-800 hover:border-slate-600'} rounded-2xl overflow-hidden shadow-2xl transition-all duration-300`}
+        >
 
             {/* Remove Button */}
             <button onClick={() => onRemove(item.id)} className="absolute top-3 right-3 p-2 bg-slate-950/80 backdrop-blur text-slate-500 hover:text-red-400 rounded-lg z-30 opacity-0 group-hover:opacity-100 transition-all duration-200 border border-slate-800 hover:border-red-900/50">
@@ -164,18 +163,28 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onUpdateConfig, onPr
             )}
 
             {/* Left: Image Preview Area */}
-            <div className="w-full lg:w-[300px] h-80 lg:h-auto min-h-[320px] relative bg-[#020617] flex-shrink-0 lg:border-r border-b lg:border-b-0 border-slate-800 group-card overflow-hidden rounded-t-2xl lg:rounded-l-2xl lg:rounded-tr-none">
+            <div className="relative aspect-square bg-[#020617] overflow-hidden group-image">
+                {/* Selection Checkbox */}
+                {onToggleSelection && (
+                    <div className="absolute top-3 left-3 z-20">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onToggleSelection(); }}
+                            className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900/80 border-slate-600 text-transparent hover:border-slate-400'}`}
+                        >
+                            <Check className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+
                 {/* Grid Pattern Background */}
                 <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(#1e293b 1px, transparent 1px), linear-gradient(90deg, #1e293b 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
 
                 {/* Image */}
                 <div className="absolute inset-0 flex items-center justify-center p-6">
-                    <motion.img
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        src={isSuccess && item.processedUrl ? item.processedUrl : item.previewUrl}
-                        alt="Preview"
-                        className={`max-w-full max-h-full object-contain shadow-2xl rounded-sm ${isProcessing ? 'blur-sm opacity-50 grayscale' : ''}`}
+                    <img
+                        src={item.previewUrl}
+                        alt={item.originalMeta.name}
+                        className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${isProcessing ? 'scale-110 blur-sm brightness-50' : ''}`}
                     />
                 </div>
 
@@ -217,15 +226,22 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onUpdateConfig, onPr
 
                 {/* Edit Overlay */}
                 {!isProcessing && (
-                    <div className="absolute inset-0 bg-slate-950/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                        <button onClick={() => onEdit(item.id)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-full font-bold text-xs flex items-center gap-2 shadow-lg transform hover:scale-105 transition-all">
-                            <Crop className="w-3.5 h-3.5" /> {t('edit')}
-                        </button>
+                    <div className="absolute inset-0 bg-slate-950/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 z-10">
+                        <div className="flex gap-2">
+                            <button onClick={() => onEdit(item.id)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 shadow-lg transform hover:scale-105 transition-all">
+                                <Crop className="w-3.5 h-3.5" /> {t('edit')}
+                            </button>
+                            {onQuickRemoveText && (
+                                <button onClick={(e) => { e.stopPropagation(); onQuickRemoveText(); }} className="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 shadow-lg transform hover:scale-105 transition-all">
+                                    <Trash2 className="w-3.5 h-3.5" /> Remove Text
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
 
                 {/* Status Badges */}
-                <div className="absolute top-3 left-3 flex gap-2 z-10">
+                <div className="absolute top-3 right-3 flex gap-2 z-10">
                     {isSuccess && <div className="bg-emerald-500/20 backdrop-blur-md text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/30 shadow-lg"><CheckCircle2 className="w-3 h-3" /> {t('done')}</div>}
                     {isError && <div className="bg-red-500/20 backdrop-blur-md text-red-400 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-red-500/30 shadow-lg"><AlertCircle className="w-3 h-3" /> {t('error')}</div>}
                     {isIdle && <div className="bg-slate-800/80 backdrop-blur-md text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-full border border-slate-700 flex items-center gap-1.5"><Clock className="w-3 h-3" /> {t('pending')}</div>}
