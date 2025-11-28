@@ -20,7 +20,8 @@ import { Hero } from './components/Layout/Hero';
 import { ApiKeyModal } from './components/Modals/ApiKeyModal';
 import { useApiKey } from './context/ApiKeyContext';
 
-import { ImageItem, OutputFormat, AiResolution, ProcessingStatus, AspectRatio, NamingPattern } from './types';
+import { OutputFormat, AiResolution, AspectRatio, ImageItem, ProcessingStatus, NamingPattern } from './types';
+import { KEYBOARD_SHORTCUTS, ARIA_LABELS } from './constants';
 import { getImageDimensions, fileToBase64, convertUrlToBlob } from './services/imageUtils';
 import { processImageWithGemini, extractTextFromImages, processCompositeGeneration, processGenerativeFill, generateImageFromText } from './services/geminiService';
 import { loadSessionImages, saveSessionImages } from './services/storageService';
@@ -965,6 +966,18 @@ const App: React.FC = () => {
         toast.success("Download ready");
     };
 
+    const deleteSelected = () => {
+        if (selectedIds.length === 0) {
+            toast.error("No images selected");
+            return;
+        }
+
+        const count = selectedIds.length;
+        setImages(prev => prev.filter(img => !selectedIds.includes(img.id)));
+        setSelectedIds([]);
+        toast.success(`Deleted ${count} images`);
+    };
+
     const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === i18n.language) || SUPPORTED_LANGUAGES[0];
     const originalCount = images.filter(i => !i.duplicateIndex || i.duplicateIndex === 1).length;
     const variantCount = images.filter(i => i.duplicateIndex && i.duplicateIndex > 1).length;
@@ -1119,10 +1132,10 @@ const App: React.FC = () => {
                                     {/* Apply Button */}
                                     <button
                                         onClick={applyBulkSettings}
-                                        className={`w-full py-3 rounded-lg font-bold text-sm uppercase tracking-wide transition-all flex items-center justify-center gap-2 ${isApplied
-                                            ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
-                                            : 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                                            }`}
+                                        className={`w - full py - 3 rounded - lg font - bold text - sm uppercase tracking - wide transition - all flex items - center justify - center gap - 2 ${isApplied
+                                                ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
+                                                : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                                            } `}
                                     >
                                         {isApplied ? <CopyCheck className="w-5 h-5" /> : <Layers className="w-5 h-5" />}
                                         {isApplied ? t('settingsSynced') : t('applyAll')}
@@ -1180,9 +1193,14 @@ const App: React.FC = () => {
                                         </button>
 
                                         {selectedIds.length > 0 && (
-                                            <button onClick={downloadSelected} className="col-span-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all animate-in fade-in slide-in-from-bottom-2">
-                                                <Download className="w-5 h-5" /> Download Selected ({selectedIds.length})
-                                            </button>
+                                            <>
+                                                <button onClick={downloadSelected} className="col-span-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all animate-in fade-in slide-in-from-bottom-2">
+                                                    <Download className="w-5 h-5" /> Download Selected ({selectedIds.length})
+                                                </button>
+                                                <button onClick={deleteSelected} className="col-span-2 bg-red-600 hover:bg-red-500 text-white px-5 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all animate-in fade-in slide-in-from-bottom-2">
+                                                    <Trash2 className="w-5 h-5" /> Delete Selected ({selectedIds.length})
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -1198,7 +1216,7 @@ const App: React.FC = () => {
                                 <div className="bg-slate-900 border-b border-slate-800 p-4 flex items-center justify-between">
                                     <h3 className="text-slate-200 font-bold text-sm uppercase tracking-widest flex items-center gap-2"><FileText className="w-4 h-4 text-emerald-400" /> {t('ocrReport')}</h3>
                                     <div className="flex gap-2">
-                                        <button onClick={copyOcrToClipboard} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isTextCopied ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+                                        <button onClick={copyOcrToClipboard} className={`flex items - center gap - 2 px - 3 py - 1.5 rounded - lg text - xs font - bold transition - all ${isTextCopied ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'} `}>
                                             {isTextCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} {isTextCopied ? t('copied') : t('copyText')}
                                         </button>
                                         <button onClick={() => setOcrText(null)} className="p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
