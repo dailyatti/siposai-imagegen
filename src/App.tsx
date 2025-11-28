@@ -57,6 +57,8 @@ const App: React.FC = () => {
         aspectRatio: AspectRatio.SQUARE
     });
 
+
+
     // UI States
     const [editingId, setEditingId] = useState<string | null>(null);
     const [ocrText, setOcrText] = useState<string | null>(null);
@@ -707,7 +709,20 @@ const App: React.FC = () => {
             return;
         }
 
-        // 6. LEGACY DASHBOARD UPDATE (For general 'update image 1' commands)
+        // 6. COMPOSITE CONFIG UPDATE
+        if (cmd.compositeAction) {
+            if (cmd.prompt) setCompositeConfig(prev => ({ ...prev, prompt: cmd.prompt }));
+            if (cmd.aspectRatio) setCompositeConfig(prev => ({ ...prev, aspectRatio: cmd.aspectRatio }));
+            if (cmd.resolution) setCompositeConfig(prev => ({ ...prev, resolution: cmd.resolution }));
+            if (cmd.format) {
+                if (cmd.format === 'JPG') setCompositeConfig(prev => ({ ...prev, format: OutputFormat.JPG }));
+                if (cmd.format === 'PNG') setCompositeConfig(prev => ({ ...prev, format: OutputFormat.PNG }));
+                if (cmd.format === 'WEBP') setCompositeConfig(prev => ({ ...prev, format: OutputFormat.WEBP }));
+            }
+            return;
+        }
+
+        // 7. LEGACY DASHBOARD UPDATE (For general 'update image 1' commands)
         const targetIndex = cmd.targetIndex ? parseInt(cmd.targetIndex) : 0;
         if (cmd.startQueue) { processAll(); return; }
 
@@ -834,7 +849,18 @@ const App: React.FC = () => {
             </AnimatePresence>
 
             <UserGuide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
-            <AnimatePresence>{isCompositeModalOpen && (<CompositeModal isOpen={isCompositeModalOpen} onClose={() => setIsCompositeModalOpen(false)} images={images} onGenerate={runCompositeGeneration} />)}</AnimatePresence>
+            <AnimatePresence>
+                {isCompositeModalOpen && (
+                    <CompositeModal
+                        isOpen={isCompositeModalOpen}
+                        onClose={() => setIsCompositeModalOpen(false)}
+                        images={images}
+                        onGenerate={runCompositeGeneration}
+                        config={compositeConfig}
+                        onConfigChange={setCompositeConfig}
+                    />
+                )}
+            </AnimatePresence>
             <AnimatePresence>{isOCRModalOpen && (<OCRSelectionModal isOpen={isOCRModalOpen} onClose={() => setIsOCRModalOpen(false)} images={images} onExtract={runOCR} />)}</AnimatePresence>
             <AnimatePresence>{editingId && (<ImageEditor imageUrl={images.find(i => i.id === editingId)?.previewUrl || ''} onSave={handleEditorSave} onClose={() => setEditingId(null)} onGenerativeFill={handleGenerativeFill} />)}</AnimatePresence>
 
