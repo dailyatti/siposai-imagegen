@@ -34,6 +34,7 @@ const TEXT_REMOVAL_KEYWORDS = [
   'szoveg nelkul',
   'szöveget töröld',
   'szoveget torold',
+  'töröld', // Added from user snippet
 ];
 
 const wantsTextRemoval = (prompt?: string | null) => {
@@ -55,25 +56,8 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
     // Detect if user specifically asks for removal (supports EN + HU)
     const isRemovalRequested = wantsTextRemoval(item.userPrompt);
 
-    let instructions = "";
-
-    if (isRemovalRequested) {
-      // TEXT REMOVAL MODE
-      if (item.userPrompt?.includes("Remove all visible text")) {
-        instructions = item.userPrompt;
-      } else {
-        instructions = `
-            Create a text-free version of this image.
-            Remove all visible text, watermarks, captions, logos, and signatures.
-            Inpaint the areas where text was present with matching background texture and colors.
-            The result should look completely natural with seamless blending.
-            
-            ${item.userPrompt}
-            `;
-      }
-    } else {
-      // NORMAL MODE - Preserve text
-      const preservationProtocol = `
+    // Define preservation protocol at top level so it can be used in both branches
+    const preservationProtocol = `
         PROTOCOL: IMMUTABLE TYPOGRAPHY & SPATIAL ANCHORING
         
         1. TEXT IDENTIFICATION: Scan the image for text overlays, logos, or captions.
@@ -92,6 +76,23 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
              - The text should remain legible and proportional to the subject, NOT stretched across the whole new width.
         `;
 
+    let instructions = "";
+
+    if (isRemovalRequested) {
+      // TEXT REMOVAL MODE - RESTORED ORIGINAL LOGIC
+      instructions = `
+        ${preservationProtocol}
+        
+        🚨 DESTRUCTIVE OVERRIDE ACTIVE: TEXT REMOVAL REQUESTED 🚨
+        User explicitly asked: "${item.userPrompt}"
+        
+        ACTION:
+        1. Identify the text/caption area.
+        2. ERASE the text pixels.
+        3. INPAINT the area with context-aware background texture to make it look like the text was never there.
+        `;
+    } else {
+      // NORMAL MODE - Preserve text
       instructions = `
         ${preservationProtocol}
         
