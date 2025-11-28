@@ -357,7 +357,41 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
 
                                 {!isMaskingMode && (
                                     <button
-                                        onClick={() => handleGenerativeFill("Remove all text, captions, and watermarks from the image. Inpaint the area to match the background seamlessly.")}
+                                        onClick={() => handleGenerativeFill(`
+CRITICAL TASK: TEXT, WATERMARK, AND CAPTION REMOVAL
+
+STEP 1 - TEXT DETECTION:
+- Scan the entire image systematically (left to right, top to bottom)
+- Detect ALL visible text including:
+  * Watermarks (especially semi-transparent ones)
+  * Captions and subtitles
+  * Logos with text
+  * Small copyright notices
+  * Overlaid text of any color
+  * Curved or stylized text
+
+STEP 2 - CONTENT ANALYSIS:
+- Analyze the BACKGROUND behind each detected text element
+- Identify the textures, colors, and patterns that would naturally exist there
+
+STEP 3 - INTELLIGENT INPAINTING:
+- Remove ALL detected text by regenerating the background
+- Match the local context precisely:
+  * If text is on sky → generate sky texture
+  * If text is on concrete → generate concrete texture
+  * If text is on skin → generate skin texture
+  * If text is on water → generate water texture
+- Ensure seamless blending at all edges
+- Preserve natural lighting and shadows
+- DO NOT leave any rectangular patches or artifacts
+
+STEP 4 - VERIFICATION:
+- The final image must look completely natural
+- No traces of removed text should be visible
+- The inpainted areas must be indistinguishable from the original background
+
+OUTPUT: Return the cleaned image with ALL text removed and backgrounds perfectly reconstructed.
+`)}
                                         disabled={isGenerating}
                                         className="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white px-5 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-900/20 transition-all disabled:opacity-50"
                                         title="Remove Text"
