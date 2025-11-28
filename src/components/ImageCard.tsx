@@ -236,6 +236,9 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onUpdateConfig, onPr
                                     <Trash2 className="w-3.5 h-3.5" /> Remove Text
                                 </button>
                             )}
+                            <button onClick={handleDownload} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 shadow-lg transform hover:scale-105 transition-all">
+                                <Download className="w-3.5 h-3.5" /> {t('download')}
+                            </button>
                         </div>
                     </div>
                 )}

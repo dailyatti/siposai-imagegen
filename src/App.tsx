@@ -889,13 +889,44 @@ const App: React.FC = () => {
 
         const toastId = toast.loading("Removing text...", { icon: '🧹' });
         try {
-            if (!apiKey) throw new Error("API Key required");
+            // Enhanced text removal with explicit detection instructions
+            const enhancedPrompt = `CRITICAL PRIORITY TASK: COMPLETE TEXT REMOVAL
 
-            // Use the original file for text removal to avoid quality loss
-            const blob = item.file;
+STEP 1 - COMPREHENSIVE TEXT DETECTION:
+Scan the ENTIRE image systematically (every pixel, all quadrants).
+Detect ALL text elements including:
+- Watermarks (including semi-transparent, rotated, or stylized)
+- Captions and subtitles (any language, any font)
+- Logos containing text
+- Copyright notices
+- Overlaid text of any color or opacity
+- Dates, timestamps, signatures
+- URLs and social media handles
 
-            // Explicitly request text removal - FIXED: processGenerativeFill takes (file, prompt) not (apiKey, file, format, prompt)
-            const result = await processGenerativeFill(blob, "Remove all text, captions, and watermarks from this image. Fill with matching background.");
+STEP 2 - INTELLIGENT BACKGROUND RECONSTRUCTION:
+For each detected text element:
+- Analyze the immediate surrounding context (textures, colors, patterns)
+- Generate seamless background that matches:
+  * If text is on sky → generate matching sky with correct gradient
+  * If text is on concrete/brick → replicate texture and grain
+  * If text is on skin → match skin tone and texture
+  * If text is on water → replicate water ripples/reflections
+  * If text is on foliage → match leaves/grass patterns
+
+STEP 3 - SEAMLESS INPAINTING:
+- Fill ALL text areas with the reconstructed background
+- Ensure perfect blending at boundaries (no visible rectangles or artifacts)
+- Preserve natural lighting, shadows, and depth
+- Match noise/grain of original image
+
+STEP 4 - VERIFICATION:
+- Final image must look completely natural
+- Zero traces of removed text
+- Inpainted areas indistinguishable from original
+
+NEGATIVE PROMPT: text, letters, words, characters, watermark, caption, subtitle, logo, signature, writing, typography, numbers, date, timestamp, copyright`;
+
+            const result = await processGenerativeFill(item.file, enhancedPrompt);
 
             // Create new variant
             const variantId = uuidv4();
@@ -917,10 +948,10 @@ const App: React.FC = () => {
                 return newArr;
             });
 
-            toast.success("Text removed successfully!", { id: toastId });
+            toast.success("Text removed - check new variant!", { id: toastId });
         } catch (e) {
             console.error(e);
-            toast.error("Failed to remove text", { id: toastId });
+            toast.error(`Failed: ${e instanceof Error ? e.message : 'Unknown error'}`, { id: toastId });
         }
     };
 
