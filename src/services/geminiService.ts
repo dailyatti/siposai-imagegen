@@ -13,6 +13,35 @@ const SAFETY_SETTINGS = [
   { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
 ];
 
+const TEXT_REMOVAL_KEYWORDS = [
+  'remove text',
+  'delete text',
+  'no text',
+  'text removal',
+  'complete text removal',
+  'critical priority task',
+  'text detection',
+  'watermark',
+  'caption removal',
+  'remove watermark',
+  'remove logo',
+  'remove caption',
+  'felirat nélkül',
+  'felirat nelkul',
+  'töröld a szöveget',
+  'torold a szoveget',
+  'szöveg nélkül',
+  'szoveg nelkul',
+  'szöveget töröld',
+  'szoveget torold',
+];
+
+const wantsTextRemoval = (prompt?: string | null) => {
+  if (!prompt) return false;
+  const lower = prompt.toLowerCase();
+  return TEXT_REMOVAL_KEYWORDS.some(keyword => lower.includes(keyword));
+};
+
 export const processImageWithGemini = async (apiKey: string, item: ImageItem): Promise<{
   processedUrl: string;
   width: number;
@@ -23,20 +52,8 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToBase64(item.file);
 
-    // Detect if user specifically asks for removal
-    const promptLower = (item.userPrompt || "").toLowerCase();
-    const isRemovalRequested =
-      promptLower.includes("remove text") ||
-      promptLower.includes("delete text") ||
-      promptLower.includes("no text") ||
-      promptLower.includes("felirat nélkül") ||
-      promptLower.includes("töröld") ||
-      promptLower.includes("text removal") ||
-      promptLower.includes("complete text removal") ||
-      promptLower.includes("critical priority task") ||
-      promptLower.includes("text detection") ||
-      promptLower.includes("watermark") ||
-      promptLower.includes("caption removal");
+    // Detect if user specifically asks for removal (supports EN + HU)
+    const isRemovalRequested = wantsTextRemoval(item.userPrompt);
 
     let instructions = "";
 
@@ -61,11 +78,13 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
         
         1. TEXT IDENTIFICATION: Scan the image for text overlays, logos, or captions.
         2. PRESERVATION RULE: ALL TEXT MUST BE PRESERVED.
+        3. PRESERVATION RULE: Keep any existing text aligned with the original composition.
            - DO NOT CROP the text.
            - DO NOT STRETCH the text.
            - DO NOT DISTORT the font aspect ratio.
+           - DO NOT INTRODUCE NEW TEXT or watermarks unless the user explicitly asked.
         
-        3. RESIZING LOGIC (Smart Reframing):
+        4. RESIZING LOGIC (Smart Reframing):
            - When changing Aspect Ratio (e.g., 9:16 -> 16:9):
              - Treat the text as part of the "Central Subject".
              - Perform "Pillarboxing" / "Outpainting": Keep the text and subject centered.
@@ -162,10 +181,21 @@ export const generateImageFromText = async (
   try {
     const ai = new GoogleGenAI({ apiKey });
 
+    const textRemovalRequested = wantsTextRemoval(prompt);
+    const antiTextDirective = `
+      Absolutely avoid rendering any text, watermarks, captions, UI chrome, or logos.
+      If any typography would normally appear, replace it with natural background detail instead.
+      This applies even for stylistic elements—keep the scene completely text-free.${textRemovalRequested ? '' : ' Only include lettering if the user explicitly asked for it.'}
+    `;
+
+    const finalPrompt = textRemovalRequested
+      ? `Create a text-free image based on the user's description. ${antiTextDirective}\nUser description: ${prompt}`
+      : `Generate a high-quality image based on the user's description. ${antiTextDirective}\nUser description: ${prompt}`;
+
     // @ts-ignore
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: { parts: [{ text: `Generate a high-quality image: ${prompt}` }] },
+      contents: { parts: [{ text: finalPrompt }] },
       config: {
         imageConfig: {
           imageSize: config.resolution as any,
