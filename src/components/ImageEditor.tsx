@@ -1,7 +1,6 @@
-
 import React, { useRef, useState, useEffect } from 'react';
 import Cropper from 'react-cropper';
-import { X, Check, RotateCw, ZoomIn, ZoomOut, Sparkles, Maximize, Download, Brush, Eraser, Square, MousePointer2 } from 'lucide-react';
+import { X, Check, RotateCw, ZoomIn, ZoomOut, Sparkles, Maximize, Download, Brush, Eraser, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { LoadingOverlay } from './LoadingOverlay';
@@ -122,18 +121,6 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
         ctx.moveTo(x, y);
     };
 
-    const clearMask = () => {
-        if (maskCanvasRef.current) {
-            const canvas = maskCanvasRef.current;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-        }
-    };
-
     const handleSave = () => {
         if (typeof cropper !== 'undefined') {
             cropper.getCroppedCanvas({
@@ -161,13 +148,9 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
                 const maskCanvas = maskCanvasRef.current;
                 const ctx = baseCanvas.getContext('2d');
 
-
                 // Create a temp canvas to scale the mask correctly to the image size
                 // The maskCanvas is the size of the CONTAINER (visual), but the baseCanvas is the size of the IMAGE (actual)
                 // We need to map the mask coordinates to the image coordinates.
-
-                const imageData = cropper.getImageData();
-                const containerData = cropper.getContainerData();
 
                 // Calculate scaling factors
                 // This is complex because Cropper might be zoomed/panned.
@@ -232,7 +215,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
             const link = document.createElement('a');
             link.href = dataUrl;
             const ext = mimeType.split('/')[1];
-            link.download = `banana_outpaint_${Date.now()}.${ext} `;
+            link.download = `banana_outpaint_${Date.now()}.${ext}`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -396,7 +379,8 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
                                     value={brushSize}
                                     onChange={(e) => setBrushSize(Number(e.target.value))}
                                     className="w-48 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                                />
+                                >
+                                </input>
                                 <div
                                     className={`rounded-full border-2 ${activeTool === ToolType.ERASER ? 'bg-slate-700/50 border-red-500' : 'bg-red-500/50 border-red-500'} `}
                                     style={{ width: Math.max(brushSize / 2, 12), height: Math.max(brushSize / 2, 12) }}
@@ -408,8 +392,12 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
 
                     <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
                         {/* Standard Tools */}
-                        <button onClick={() => setIsMaskingMode(!isMaskingMode)} className={`flex flex - col items - center gap - 1 transition - colors ${isMaskingMode ? 'text-emerald-400' : 'text-slate-400 hover:text-white'} `}>
-                            <Brush className="w-5 h-5" /> <span className="text-[10px]">{isMaskingMode ? 'Masking On' : 'Mask'}</span>
+                        <button
+                            onClick={() => setIsMaskingMode(!isMaskingMode)}
+                            className={`flex flex-col items-center gap-1 transition-colors ${isMaskingMode ? 'text-emerald-400' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <Brush className="w-5 h-5" />
+                            <span className="text-[10px]">{isMaskingMode ? 'Masking On' : 'Mask'}</span>
                         </button>
 
                         <div className="w-px bg-slate-700 mx-2 hidden sm:block"></div>
@@ -432,7 +420,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
                                 <button
                                     onClick={() => handleGenerativeFill(isMaskingMode ? "Inpaint the masked area to match the background seamlessly." : undefined)}
                                     disabled={isGenerating}
-                                    className={`bg - gradient - to - r ${isMaskingMode ? 'from-emerald-600 to-teal-600' : 'from-purple-600 to-indigo-600'} hover: opacity - 90 text - white px - 5 py - 2 rounded - lg font - bold text - sm flex items - center gap - 2 shadow - lg transition - all disabled: opacity - 50`}
+                                    className={`bg-gradient-to-r ${isMaskingMode ? 'from-emerald-600 to-teal-600' : 'from-purple-600 to-indigo-600'} hover:opacity-90 text-white px-5 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg transition-all disabled:opacity-50`}
                                     title={isMaskingMode ? "Fill Masked Area" : t('genFillDesc')}
                                 >
                                     <Sparkles className="w-4 h-4" /> {isMaskingMode ? 'Fill Mask' : t('genFill')}
