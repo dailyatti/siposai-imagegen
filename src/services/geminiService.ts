@@ -5,6 +5,14 @@ import { fileToBase64, convertImageFormat } from "./imageUtils";
 const MODEL_NAME = 'gemini-3-pro-image-preview';
 const TEXT_MODEL = 'gemini-2.5-flash';
 
+// Safety settings to reduce false positives and allow text removal
+const SAFETY_SETTINGS = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+];
+
 export const processImageWithGemini = async (apiKey: string, item: ImageItem): Promise<{
   processedUrl: string;
   width: number;
@@ -22,40 +30,48 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
       promptLower.includes("delete text") ||
       promptLower.includes("no text") ||
       promptLower.includes("felirat nélkül") ||
-      promptLower.includes("töröld");
+      promptLower.includes("töröld") ||
+      promptLower.includes("text removal") ||
+      promptLower.includes("complete text removal") ||
+      promptLower.includes("critical priority task") ||
+      promptLower.includes("text detection") ||
+      promptLower.includes("watermark") ||
+      promptLower.includes("caption removal");
 
     let instructions = "";
 
-    const preservationProtocol = `
-    PROTOCOL: IMMUTABLE TYPOGRAPHY & SPATIAL ANCHORING
-    
-    1. TEXT IDENTIFICATION: Scan the image for text overlays, logos, or captions.
-    2. PRESERVATION RULE: Unless explicitly told to remove it, ALL TEXT MUST BE PRESERVED.
-       - DO NOT CROP the text.
-       - DO NOT STRETCH the text.
-       - DO NOT DISTORT the font aspect ratio.
-    
-    3. RESIZING LOGIC (Smart Reframing):
-       - When changing Aspect Ratio (e.g., 9:16 -> 16:9):
-         - Treat the text as part of the "Central Subject".
-         - Perform "Pillarboxing" / "Outpainting": Keep the text and subject centered.
-         - Extend the BACKGROUND horizontally or vertically to fill the new frame.
-         - The text should remain legible and proportional to the subject, NOT stretched across the whole new width.
-    `;
-
     if (isRemovalRequested) {
-      instructions = `
-        ${preservationProtocol}
-        
-        🚨 DESTRUCTIVE OVERRIDE ACTIVE: TEXT REMOVAL REQUESTED 🚨
-        User explicitly asked: "${item.userPrompt}"
-        
-        ACTION:
-        1. Identify the text/caption area.
-        2. ERASE the text pixels.
-        3. INPAINT the area with context-aware background texture to make it look like the text was never there.
-        `;
+      // TEXT REMOVAL MODE
+      if (item.userPrompt?.includes("Remove all visible text")) {
+        instructions = item.userPrompt;
+      } else {
+        instructions = `
+            Remove all text, watermarks, captions, logos, and signatures from this image.
+            Fill the removed areas with matching background texture and colors.
+            The result should look completely natural with seamless blending.
+            
+            ${item.userPrompt}
+            `;
+      }
     } else {
+      // NORMAL MODE - Preserve text
+      const preservationProtocol = `
+        PROTOCOL: IMMUTABLE TYPOGRAPHY & SPATIAL ANCHORING
+        
+        1. TEXT IDENTIFICATION: Scan the image for text overlays, logos, or captions.
+        2. PRESERVATION RULE: ALL TEXT MUST BE PRESERVED.
+           - DO NOT CROP the text.
+           - DO NOT STRETCH the text.
+           - DO NOT DISTORT the font aspect ratio.
+        
+        3. RESIZING LOGIC (Smart Reframing):
+           - When changing Aspect Ratio (e.g., 9:16 -> 16:9):
+             - Treat the text as part of the "Central Subject".
+             - Perform "Pillarboxing" / "Outpainting": Keep the text and subject centered.
+             - Extend the BACKGROUND horizontally or vertically to fill the new frame.
+             - The text should remain legible and proportional to the subject, NOT stretched across the whole new width.
+        `;
+
       instructions = `
         ${preservationProtocol}
         
@@ -93,7 +109,8 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
           aspectRatio: item.targetAspectRatio as any,
         },
       },
-    });
+      safetySettings: SAFETY_SETTINGS,
+    } as any);
 
     let rawBase64: string | null = null;
     let failureReason = "";
@@ -109,7 +126,10 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
       }
     }
 
-    if (!rawBase64) throw new Error(failureReason || "No image data returned from AI.");
+    if (!rawBase64) {
+      console.error("Gemini Response Failure:", JSON.stringify(response, null, 2));
+      throw new Error(failureReason || "No image data returned. The request may have been blocked by safety filters or the model refused the task.");
+    }
 
     const converted = await convertImageFormat(rawBase64, item.targetFormat);
     return {
@@ -142,7 +162,8 @@ export const generateImageFromText = async (
           aspectRatio: config.aspectRatio as any,
         },
       },
-    });
+      safetySettings: SAFETY_SETTINGS,
+    } as any);
 
     let rawBase64: string | null = null;
     let failureReason = "";
@@ -223,7 +244,8 @@ export const processGenerativeFill = async (
           imageSize: '2K',
         },
       },
-    });
+      safetySettings: SAFETY_SETTINGS,
+    } as any);
 
     let rawBase64: string | null = null;
     let failureReason = "";
@@ -308,7 +330,8 @@ export const processCompositeGeneration = async (
           aspectRatio: config.aspectRatio as any,
         },
       },
-    });
+      safetySettings: SAFETY_SETTINGS,
+    } as any);
 
     let rawBase64: string | null = null;
     let failureReason = "";

@@ -888,42 +888,8 @@ const App: React.FC = () => {
         const item = images.find(i => i.id === id);
         if (!item) return;
 
-        // Enhanced text removal with explicit detection instructions
-        const enhancedPrompt = `CRITICAL PRIORITY TASK: COMPLETE TEXT REMOVAL
-
-STEP 1 - COMPREHENSIVE TEXT DETECTION:
-Scan the ENTIRE image systematically (every pixel, all quadrants).
-Detect ALL text elements including:
-- Watermarks (including semi-transparent, rotated, or stylized)
-- Captions and subtitles (any language, any font)
-- Logos containing text
-- Copyright notices
-- Overlaid text of any color or opacity
-- Dates, timestamps, signatures
-- URLs and social media handles
-
-STEP 2 - INTELLIGENT BACKGROUND RECONSTRUCTION:
-For each detected text element:
-- Analyze the immediate surrounding context (textures, colors, patterns)
-- Generate seamless background that matches:
-  * If text is on sky → generate sky texture
-  * If text is on concrete/brick → replicate texture and grain
-  * If text is on skin → match skin tone and texture
-  * If text is on water → replicate water ripples/reflections
-  * If text is on foliage → match leaves/grass patterns
-
-STEP 3 - SEAMLESS INPAINTING:
-- Fill ALL text areas with the reconstructed background
-- Ensure perfect blending at boundaries (no visible rectangles or artifacts)
-- Preserve natural lighting, shadows, and depth
-- Match noise/grain of original image
-
-STEP 4 - VERIFICATION:
-- Final image must look completely natural
-- Zero traces of removed text
-- Inpainted areas indistinguishable from original
-
-NEGATIVE PROMPT: text, letters, words, characters, watermark, caption, subtitle, logo, signature, writing, typography, numbers, date, timestamp, copyright`;
+        // Simplified and effective text removal prompt
+        const enhancedPrompt = `Remove all visible text, watermarks, captions, logos, and signatures from this image. Intelligently fill the removed areas with matching background texture and colors to make it look completely natural and seamless.`;
 
         // Use standard processing flow with override prompt
         // This ensures UI feedback (loading spinners, status updates) works exactly like standard generation
@@ -1258,7 +1224,7 @@ NEGATIVE PROMPT: text, letters, words, characters, watermark, caption, subtitle,
                     )}
                 </AnimatePresence>
 
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+                <div className="grid grid-cols-1 gap-6">
                     <AnimatePresence>
                         {images.map(img => (
                             <ImageCard

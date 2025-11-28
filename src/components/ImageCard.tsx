@@ -147,7 +147,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onUpdateConfig, onPr
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className={`group relative bg-[#0f172a]/80 backdrop-blur-xl border ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-800 hover:border-slate-600'} rounded-2xl overflow-hidden shadow-2xl transition-all duration-300`}
+            className={`group relative bg-[#0f172a]/80 backdrop-blur-xl border ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-800 hover:border-slate-600'} rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-row`}
         >
 
             {/* Remove Button */}
@@ -163,7 +163,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onUpdateConfig, onPr
             )}
 
             {/* Left: Image Preview Area */}
-            <div className="relative aspect-square bg-[#020617] overflow-hidden group-image">
+            <div className="relative w-80 h-auto bg-[#020617] overflow-hidden group-image shrink-0 border-b md:border-b-0 md:border-r border-slate-800">
                 {/* Selection Checkbox */}
                 {onToggleSelection && (
                     <div className="absolute top-3 left-3 z-20">
@@ -184,7 +184,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onUpdateConfig, onPr
                     <img
                         src={item.previewUrl}
                         alt={item.originalMeta.name}
-                        className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${isProcessing ? 'scale-110 blur-sm brightness-50' : ''}`}
+                        className={`w-full h-full object-contain transition-transform duration-700 group-hover:scale-105 ${isProcessing ? 'scale-110 blur-sm brightness-50' : ''}`}
                     />
                 </div>
 
