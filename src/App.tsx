@@ -21,7 +21,7 @@ import { ApiKeyModal } from './components/Modals/ApiKeyModal';
 import { useApiKey } from './context/ApiKeyContext';
 
 import { OutputFormat, AiResolution, AspectRatio, ImageItem, ProcessingStatus, NamingPattern } from './types';
-import { KEYBOARD_SHORTCUTS, ARIA_LABELS } from './constants';
+import { KEYBOARD_SHORTCUTS, ARIA_LABELS, PROMPTS } from './constants';
 import { getImageDimensions, fileToBase64, convertUrlToBlob } from './services/imageUtils';
 import { processImageWithGemini, extractTextFromImages, processCompositeGeneration, processGenerativeFill, generateImageFromText } from './services/geminiService';
 import { loadSessionImages, saveSessionImages } from './services/storageService';
@@ -889,7 +889,8 @@ const App: React.FC = () => {
         if (!item) return;
 
         // Simplified prompt as requested by user - this worked best in previous versions
-        const enhancedPrompt = "Remove all visible text";
+        // UPDATE: Using the detailed constant prompt now to ensure effectiveness
+        const enhancedPrompt = PROMPTS.REMOVE_TEXT;
 
         // Use standard processing flow with override prompt
         // This ensures UI feedback (loading spinners, status updates) works exactly like standard generation

@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AiResolution, ImageItem, AspectRatio, OutputFormat } from "../types";
 import { fileToBase64, convertImageFormat } from "./imageUtils";
+import { PROMPTS } from "../constants";
 
 const MODEL_NAME = 'gemini-3-pro-image-preview';
 const TEXT_MODEL = 'gemini-2.5-flash';
@@ -22,7 +23,9 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
   size: number;
 }> => {
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const finalApiKey = apiKey || process.env.API_KEY || "";
+    if (!finalApiKey) throw new Error("API Key is required");
+    const ai = new GoogleGenAI({ apiKey: finalApiKey });
     const base64Data = await fileToBase64(item.file);
 
     // Detect if user specifically asks for removal
@@ -54,17 +57,7 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
     `;
 
     if (isRemovalRequested) {
-      instructions = `
-        ${preservationProtocol}
-        
-        🚨 DESTRUCTIVE OVERRIDE ACTIVE: TEXT REMOVAL REQUESTED 🚨
-        User explicitly asked: "${item.userPrompt}"
-        
-        ACTION:
-        1. Identify the text/caption area.
-        2. ERASE the text pixels.
-        3. INPAINT the area with context-aware background texture to make it look like the text was never there.
-        `;
+      instructions = PROMPTS.REMOVE_TEXT;
     } else {
       instructions = `
         ${preservationProtocol}
@@ -103,9 +96,9 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
           imageSize: item.targetResolution as any,
           aspectRatio: item.targetAspectRatio as any,
         },
-        safetySettings: SAFETY_SETTINGS, // Try inside config too
+        // safetySettings: SAFETY_SETTINGS, // Removed to match old behavior
       },
-      safetySettings: SAFETY_SETTINGS, // And top level
+      // safetySettings: SAFETY_SETTINGS, // Removed to match old behavior
     } as any);
 
     let rawBase64: string | null = null;
