@@ -17,9 +17,10 @@ interface ImageEditorProps {
     onSave: (newUrl: string, newBlob: Blob) => void;
     onClose: () => void;
     onGenerativeFill?: (imageBlob: Blob, customPrompt?: string) => Promise<string>; // Returns new image URL
+    onRemoveText?: () => void; // Callback for Remove Text button - uses remaster API instead of generative fill
 }
 
-export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onClose, onGenerativeFill }) => {
+export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onClose, onGenerativeFill, onRemoveText }) => {
     const { t } = useTranslation();
     const cropperRef = useRef<HTMLImageElement>(null);
     const [cropper, setCropper] = useState<any>();
@@ -428,7 +429,15 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl, onSave, onCl
 
                                 {!isMaskingMode && (
                                     <button
-                                        onClick={() => handleGenerativeFill(`
+                                        onClick={() => {
+                                            // CRITICAL FIX: Use remaster API (processImageWithGemini) instead of generative fill
+                                            // Generative fill is only for outpainting, not for removing text from inside the image
+                                            if (onRemoveText) {
+                                                onRemoveText();
+                                                onClose(); // Close editor after triggering removal
+                                            } else {
+                                                // Fallback to old method if callback not provided (for backwards compatibility)
+                                                handleGenerativeFill(`
 CRITICAL TASK: TEXT, WATERMARK, AND CAPTION REMOVAL
 
 STEP 1 - TEXT DETECTION:
@@ -462,7 +471,9 @@ STEP 4 - VERIFICATION:
         - The inpainted areas must be indistinguishable from the original background
 
 OUTPUT: Return the cleaned image with ALL text removed and backgrounds perfectly reconstructed.
-`)}
+`);
+                                            }
+                                        }}
                                         disabled={isGenerating}
                                         className="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white px-5 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg shadow-red-900/20 transition-all disabled:opacity-50"
                                         title="Remove Text"

@@ -996,7 +996,22 @@ const App: React.FC = () => {
                 )}
             </AnimatePresence>
             <AnimatePresence>{isOCRModalOpen && (<OCRSelectionModal isOpen={isOCRModalOpen} onClose={() => setIsOCRModalOpen(false)} images={images} onExtract={runOCR} />)}</AnimatePresence>
-            <AnimatePresence>{editingId && (<ImageEditor imageUrl={images.find(i => i.id === editingId)?.previewUrl || ''} onSave={handleEditorSave} onClose={() => setEditingId(null)} onGenerativeFill={handleGenerativeFill} />)}</AnimatePresence>
+            <AnimatePresence>{editingId && (
+                <ImageEditor 
+                    imageUrl={images.find(i => i.id === editingId)?.previewUrl || ''} 
+                    onSave={handleEditorSave} 
+                    onClose={() => setEditingId(null)} 
+                    onGenerativeFill={handleGenerativeFill}
+                    onRemoveText={() => {
+                        if (editingId) {
+                            // Use the remaster API (processImageWithGemini) instead of generative fill
+                            // This is the correct way to remove text, as proven in BananaAI
+                            processSingleImage(editingId, PROMPTS.REMOVE_TEXT);
+                            setEditingId(null); // Close editor
+                        }
+                    }}
+                />
+            )}</AnimatePresence>
 
             <VoiceAssistant
                 apiKey={apiKey}
