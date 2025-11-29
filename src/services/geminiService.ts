@@ -109,9 +109,14 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
           imageSize: item.targetResolution as any,
           aspectRatio: item.targetAspectRatio as any,
         },
-        safetySettings: SAFETY_SETTINGS, // Restore explicit BLOCK_NONE
+        safetySettings: SAFETY_SETTINGS,
+        // Force disable function calling to prevent MALFORMED_FUNCTION_CALL
+        toolConfig: {
+          functionCallingConfig: {
+            mode: 'NONE'
+          }
+        },
       },
-      safetySettings: SAFETY_SETTINGS, // Restore explicit BLOCK_NONE
     } as any);
 
     let rawBase64: string | null = null;
