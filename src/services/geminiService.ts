@@ -23,9 +23,12 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
   size: number;
 }> => {
   try {
-    const finalApiKey = apiKey || process.env.API_KEY || "";
-    if (!finalApiKey) throw new Error("API Key is required");
-    const ai = new GoogleGenAI({ apiKey: finalApiKey });
+    // CRITICAL FIX: process.env doesn't exist in browser!
+    // The apiKey must come from the React context (user settings)
+    if (!apiKey || apiKey.trim() === "") {
+      throw new Error("API Key is required. Please set your Gemini API key in the settings.");
+    }
+    const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToBase64(item.file);
 
     // Detect if user specifically asks for removal
@@ -106,9 +109,9 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
           imageSize: item.targetResolution as any,
           aspectRatio: item.targetAspectRatio as any,
         },
-        // safetySettings: SAFETY_SETTINGS, // Removed to match old behavior
+        safetySettings: SAFETY_SETTINGS, // Restore explicit BLOCK_NONE
       },
-      // safetySettings: SAFETY_SETTINGS, // Removed to match old behavior
+      safetySettings: SAFETY_SETTINGS, // Restore explicit BLOCK_NONE
     } as any);
 
     let rawBase64: string | null = null;
