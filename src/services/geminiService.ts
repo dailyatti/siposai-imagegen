@@ -13,35 +13,7 @@ const SAFETY_SETTINGS = [
   { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
 ];
 
-const TEXT_REMOVAL_KEYWORDS = [
-  'remove text',
-  'delete text',
-  'no text',
-  'text removal',
-  'complete text removal',
-  'critical priority task',
-  'text detection',
-  'watermark',
-  'caption removal',
-  'remove watermark',
-  'remove logo',
-  'remove caption',
-  'felirat nélkül',
-  'felirat nelkul',
-  'töröld a szöveget',
-  'torold a szoveget',
-  'szöveg nélkül',
-  'szoveg nelkul',
-  'szöveget töröld',
-  'szoveget torold',
-  'töröld', // Added from user snippet
-];
 
-const wantsTextRemoval = (prompt?: string | null) => {
-  if (!prompt) return false;
-  const lower = prompt.toLowerCase();
-  return TEXT_REMOVAL_KEYWORDS.some(keyword => lower.includes(keyword));
-};
 
 export const processImageWithGemini = async (apiKey: string, item: ImageItem): Promise<{
   processedUrl: string;
@@ -53,33 +25,35 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToBase64(item.file);
 
-    // Detect if user specifically asks for removal (supports EN + HU)
-    const isRemovalRequested = wantsTextRemoval(item.userPrompt);
-
-    // Define preservation protocol at top level so it can be used in both branches
-    const preservationProtocol = `
-        PROTOCOL: IMMUTABLE TYPOGRAPHY & SPATIAL ANCHORING
-        
-        1. TEXT IDENTIFICATION: Scan the image for text overlays, logos, or captions.
-        2. PRESERVATION RULE: ALL TEXT MUST BE PRESERVED.
-        3. PRESERVATION RULE: Keep any existing text aligned with the original composition.
-           - DO NOT CROP the text.
-           - DO NOT STRETCH the text.
-           - DO NOT DISTORT the font aspect ratio.
-           - DO NOT INTRODUCE NEW TEXT or watermarks unless the user explicitly asked.
-        
-        4. RESIZING LOGIC (Smart Reframing):
-           - When changing Aspect Ratio (e.g., 9:16 -> 16:9):
-             - Treat the text as part of the "Central Subject".
-             - Perform "Pillarboxing" / "Outpainting": Keep the text and subject centered.
-             - Extend the BACKGROUND horizontally or vertically to fill the new frame.
-             - The text should remain legible and proportional to the subject, NOT stretched across the whole new width.
-        `;
+    // Detect if user specifically asks for removal
+    const promptLower = (item.userPrompt || "").toLowerCase();
+    const isRemovalRequested =
+      promptLower.includes("remove text") ||
+      promptLower.includes("delete text") ||
+      promptLower.includes("no text") ||
+      promptLower.includes("felirat nélkül") ||
+      promptLower.includes("töröld");
 
     let instructions = "";
 
+    const preservationProtocol = `
+    PROTOCOL: IMMUTABLE TYPOGRAPHY & SPATIAL ANCHORING
+    
+    1. TEXT IDENTIFICATION: Scan the image for text overlays, logos, or captions.
+    2. PRESERVATION RULE: Unless explicitly told to remove it, ALL TEXT MUST BE PRESERVED.
+       - DO NOT CROP the text.
+       - DO NOT STRETCH the text.
+       - DO NOT DISTORT the font aspect ratio.
+    
+    3. RESIZING LOGIC (Smart Reframing):
+       - When changing Aspect Ratio (e.g., 9:16 -> 16:9):
+         - Treat the text as part of the "Central Subject".
+         - Perform "Pillarboxing" / "Outpainting": Keep the text and subject centered.
+         - Extend the BACKGROUND horizontally or vertically to fill the new frame.
+         - The text should remain legible and proportional to the subject, NOT stretched across the whole new width.
+    `;
+
     if (isRemovalRequested) {
-      // TEXT REMOVAL MODE - RESTORED ORIGINAL LOGIC
       instructions = `
         ${preservationProtocol}
         
@@ -92,7 +66,6 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
         3. INPAINT the area with context-aware background texture to make it look like the text was never there.
         `;
     } else {
-      // NORMAL MODE - Preserve text
       instructions = `
         ${preservationProtocol}
         
@@ -182,21 +155,10 @@ export const generateImageFromText = async (
   try {
     const ai = new GoogleGenAI({ apiKey });
 
-    const textRemovalRequested = wantsTextRemoval(prompt);
-    const antiTextDirective = `
-      Absolutely avoid rendering any text, watermarks, captions, UI chrome, or logos.
-      If any typography would normally appear, replace it with natural background detail instead.
-      This applies even for stylistic elements—keep the scene completely text-free.${textRemovalRequested ? '' : ' Only include lettering if the user explicitly asked for it.'}
-    `;
-
-    const finalPrompt = textRemovalRequested
-      ? `Create a text-free image based on the user's description. ${antiTextDirective}\nUser description: ${prompt}`
-      : `Generate a high-quality image based on the user's description. ${antiTextDirective}\nUser description: ${prompt}`;
-
     // @ts-ignore
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: { parts: [{ text: finalPrompt }] },
+      contents: { parts: [{ text: `Generate a high-quality image: ${prompt}` }] },
       config: {
         imageConfig: {
           imageSize: config.resolution as any,
@@ -265,26 +227,12 @@ export const processGenerativeFill = async (
 
     const prompt = customPrompt || defaultPrompt;
 
-    // Enhanced Text Removal Logic
-    let finalPrompt = prompt;
-    const promptLower = (customPrompt || "").toLowerCase();
-    if (promptLower.includes("remove") && (promptLower.includes("text") || promptLower.includes("watermark") || promptLower.includes("caption"))) {
-      finalPrompt += `
-        
-        NEGATIVE PROMPT (THINGS TO EXCLUDE):
-        text, watermark, letters, characters, subtitles, captions, copyright, signature, logo, writing, typography, numbers, date, time, branding.
-        
-        INSTRUCTION:
-        Ensure the area where text was removed is filled with natural background texture matching the surrounding area. Seamless blending. High fidelity.
-        `;
-    }
-
     // @ts-ignore
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: {
         parts: [
-          { text: finalPrompt },
+          { text: prompt },
           { inlineData: { mimeType: 'image/png', data: base64Data } },
         ],
       },
