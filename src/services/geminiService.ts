@@ -38,7 +38,12 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
       promptLower.includes("delete text") ||
       promptLower.includes("no text") ||
       promptLower.includes("felirat nélkül") ||
-      promptLower.includes("töröld");
+      promptLower.includes("töröld") ||
+      promptLower.includes("töröl") ||
+      promptLower.includes("írást") ||
+      promptLower.includes("text removal") ||
+      promptLower.includes("watermark") ||
+      promptLower.includes("caption removal");
 
     let instructions = "";
 
@@ -60,16 +65,15 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
     `;
 
     if (isRemovalRequested) {
+      // TEXT REMOVAL MODE - NO preservation protocol, use detailed removal instructions
       instructions = `
-        ${preservationProtocol}
+        ${PROMPTS.REMOVE_TEXT}
         
-        🚨 DESTRUCTIVE OVERRIDE ACTIVE: TEXT REMOVAL REQUESTED 🚨
-        User explicitly asked: "${item.userPrompt}"
+        ${PROMPTS.NEGATIVE_PROMPT_TEXT}
         
-        ACTION:
-        1. Identify the text/caption area.
-        2. ERASE the text pixels.
-        3. INPAINT the area with context-aware background texture to make it look like the text was never there.
+        CRITICAL: The user explicitly requested text removal: "${item.userPrompt}"
+        DO NOT preserve any text. Remove ALL text, watermarks, captions, and logos.
+        The final image must be completely clean with no traces of text.
         `;
     } else {
       instructions = `
