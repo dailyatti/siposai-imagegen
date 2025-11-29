@@ -57,7 +57,17 @@ export const processImageWithGemini = async (apiKey: string, item: ImageItem): P
     `;
 
     if (isRemovalRequested) {
-      instructions = PROMPTS.REMOVE_TEXT;
+      instructions = `
+        ${preservationProtocol}
+        
+        🚨 DESTRUCTIVE OVERRIDE ACTIVE: TEXT REMOVAL REQUESTED 🚨
+        User explicitly asked: "${item.userPrompt}"
+        
+        ACTION:
+        1. Identify the text/caption area.
+        2. ERASE the text pixels.
+        3. INPAINT the area with context-aware background texture to make it look like the text was never there.
+        `;
     } else {
       instructions = `
         ${preservationProtocol}

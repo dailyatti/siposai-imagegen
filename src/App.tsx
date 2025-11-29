@@ -889,8 +889,7 @@ const App: React.FC = () => {
         if (!item) return;
 
         // Simplified prompt as requested by user - this worked best in previous versions
-        // UPDATE: Using the detailed constant prompt now to ensure effectiveness
-        const enhancedPrompt = PROMPTS.REMOVE_TEXT;
+        const enhancedPrompt = "töröld az írást";
 
         // Use standard processing flow with override prompt
         // This ensures UI feedback (loading spinners, status updates) works exactly like standard generation
